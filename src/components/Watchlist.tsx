@@ -1,7 +1,7 @@
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { StockType, WatchStock } from '../types';
-import { formatCurrency, formatPercent } from '../utils/format';
+import { currencyForSymbol, formatCurrency, formatPercent } from '../utils/format';
 import { EmptyState } from './EmptyState';
 import { StockSearch } from './StockSearch';
 
@@ -140,6 +140,7 @@ export function Watchlist({ stocks, selectedId, onAdd, onRemove, onSelect, onRef
         <div className="stock-list">
           {stocks.map((stock) => {
             const changeClass = (stock.quote?.change ?? 0) >= 0 ? 'positive' : 'negative';
+            const currency = stock.quote?.currency || currencyForSymbol(stock.symbol);
             return (
               <article
                 key={stock.id}
@@ -151,9 +152,9 @@ export function Watchlist({ stocks, selectedId, onAdd, onRemove, onSelect, onRef
                   <span>{stock.companyName}</span>
                 </div>
                 <div>
-                  <strong>{formatCurrency(stock.quote?.currentPrice)}</strong>
+                  <strong>{formatCurrency(stock.quote?.currentPrice, currency)}</strong>
                   <span className={changeClass}>
-                    {formatCurrency(stock.quote?.change)} · {formatPercent(stock.quote?.changePercent)}
+                    {formatCurrency(stock.quote?.change, currency)} · {formatPercent(stock.quote?.changePercent)}
                   </span>
                 </div>
                 <p>{stock.reason || '还没有写关注理由。'}</p>

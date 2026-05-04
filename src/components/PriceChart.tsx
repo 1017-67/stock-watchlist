@@ -16,11 +16,34 @@ interface Props {
   range: PriceRange;
   loading: boolean;
   error?: string;
+  currency: string;
   onRangeChange: (range: PriceRange) => void;
   onRetry: () => void;
 }
 
-export function PriceChart({ data, range, loading, error, onRangeChange, onRetry }: Props) {
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  currency
+}: {
+  active?: boolean;
+  payload?: Array<{ value?: number }>;
+  label?: string;
+  currency: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const price = Number(payload[0]?.value);
+
+  return (
+    <div className="chart-tooltip">
+      <div>时间：{label}</div>
+      <strong>价格：{formatCurrency(price, currency)}</strong>
+    </div>
+  );
+}
+
+export function PriceChart({ data, range, loading, error, currency, onRangeChange, onRetry }: Props) {
   return (
     <div className="chart-block">
       <div className="range-tabs">
@@ -49,7 +72,7 @@ export function PriceChart({ data, range, loading, error, onRangeChange, onRetry
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data} margin={{ top: 18, right: 18, left: 0, bottom: 8 }}>
+          <AreaChart data={data} margin={{ top: 18, right: 18, left: 16, bottom: 8 }}>
             <defs>
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#b98521" stopOpacity={0.22} />
@@ -59,17 +82,16 @@ export function PriceChart({ data, range, loading, error, onRangeChange, onRetry
             <CartesianGrid stroke="#eadfce" strokeDasharray="3 5" vertical={false} />
             <XAxis dataKey="time" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#7f766a' }} minTickGap={28} />
             <YAxis
-              width={68}
+              width={84}
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 12, fill: '#7f766a' }}
-              tickFormatter={(value) => formatCurrency(Number(value))}
+              tickFormatter={(value) => formatCurrency(Number(value), currency)}
               domain={['dataMin', 'dataMax']}
             />
             <Tooltip
-              formatter={(value) => [formatCurrency(Number(value)), '价格']}
-              labelFormatter={(label) => `时间：${label}`}
-              contentStyle={{ borderRadius: 8, border: '1px solid #ded8cf', boxShadow: 'none' }}
+              content={<ChartTooltip currency={currency} />}
+              cursor={{ stroke: '#c7b8a0', strokeWidth: 1 }}
             />
             <Area type="monotone" dataKey="price" stroke="#b98521" strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 4 }} />
           </AreaChart>

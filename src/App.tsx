@@ -6,9 +6,32 @@ import { TradeDecisionForm } from './components/TradeDecisionForm';
 import { Watchlist } from './components/Watchlist';
 import { getPriceHistory, getQuote } from './services/marketDataService';
 import { loadJournal, loadWatchlist, saveJournal, saveWatchlist } from './services/storageService';
-import type { HistoryPoint, JournalEntry, PriceRange, WatchStock } from './types';
+import type { HistoryPoint, JournalEntry, PriceRange, Quote, WatchStock } from './types';
 
 const MARKET_ERROR = '暂时无法获取实时行情，请稍后再试。';
+
+function quoteFromHistory(stock: WatchStock, data: HistoryPoint[]): Quote | undefined {
+  const last = data.at(-1);
+  if (!last?.price) return stock.quote;
+
+  const previousClose = stock.quote?.previousClose;
+  const change = previousClose ? last.price - previousClose : stock.quote?.change ?? 0;
+  const changePercent = previousClose ? (change / previousClose) * 100 : stock.quote?.changePercent ?? 0;
+
+  return {
+    symbol: stock.symbol,
+    currency: last.currency || stock.quote?.currency,
+    currentPrice: last.price,
+    change,
+    changePercent,
+    previousClose,
+    high: stock.quote?.high,
+    low: stock.quote?.low,
+    open: stock.quote?.open,
+    timestamp: Date.now(),
+    source: stock.quote?.source || 'history'
+  };
+}
 
 export default function App() {
   const [stocks, setStocks] = useState<WatchStock[]>(() => loadWatchlist());
@@ -71,16 +94,7 @@ export default function App() {
               item.id === stock.id
                 ? {
                     ...item,
-                    quote: item.quote
-                      ? {
-                          ...item.quote,
-                          currentPrice: lastPrice,
-                          change: item.quote.previousClose ? lastPrice - item.quote.previousClose : item.quote.change,
-                          changePercent: item.quote.previousClose
-                            ? ((lastPrice - item.quote.previousClose) / item.quote.previousClose) * 100
-                            : item.quote.changePercent
-                        }
-                      : item.quote
+                    quote: quoteFromHistory(item, data)
                   }
                 : item
             )
@@ -116,16 +130,7 @@ export default function App() {
                 item.id === selectedStockId
                   ? {
                       ...item,
-                      quote: item.quote
-                        ? {
-                            ...item.quote,
-                            currentPrice: lastPrice,
-                            change: item.quote.previousClose ? lastPrice - item.quote.previousClose : item.quote.change,
-                            changePercent: item.quote.previousClose
-                              ? ((lastPrice - item.quote.previousClose) / item.quote.previousClose) * 100
-                              : item.quote.changePercent
-                          }
-                        : item.quote
+                      quote: quoteFromHistory(item, data)
                     }
                   : item
               )

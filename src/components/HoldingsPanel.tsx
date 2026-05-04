@@ -1,5 +1,5 @@
 import type { WatchStock } from '../types';
-import { formatCurrency, formatNumber, formatPercent } from '../utils/format';
+import { currencyForSymbol, formatCurrency, formatNumber, formatPercent } from '../utils/format';
 import { EmptyState } from './EmptyState';
 
 export function HoldingsPanel({ holdings }: { holdings: WatchStock[] }) {
@@ -25,6 +25,7 @@ export function HoldingsPanel({ holdings }: { holdings: WatchStock[] }) {
           </div>
           {holdings.map((stock) => {
             const currentPrice = stock.quote?.currentPrice ?? 0;
+            const currency = stock.quote?.currency || currencyForSymbol(stock.symbol);
             const shares = stock.shares ?? 0;
             const avg = stock.avgBuyPrice ?? 0;
             const marketValue = shares * currentPrice;
@@ -34,10 +35,10 @@ export function HoldingsPanel({ holdings }: { holdings: WatchStock[] }) {
               <div className="table-row" key={stock.id}>
                 <span><strong>{stock.symbol}</strong><small>{stock.companyName}</small></span>
                 <span>{formatNumber(shares)}</span>
-                <span>{formatCurrency(avg)}</span>
-                <span>{formatCurrency(currentPrice)}</span>
-                <span>{formatCurrency(marketValue)}</span>
-                <span className={pnl >= 0 ? 'positive' : 'negative'}>{formatCurrency(pnl)} · {formatPercent(pnlPercent)}</span>
+                <span>{formatCurrency(avg, currency)}</span>
+                <span>{formatCurrency(currentPrice, currency)}</span>
+                <span>{formatCurrency(marketValue, currency)}</span>
+                <span className={pnl >= 0 ? 'positive' : 'negative'}>{formatCurrency(pnl, currency)} · {formatPercent(pnlPercent)}</span>
               </div>
             );
           })}

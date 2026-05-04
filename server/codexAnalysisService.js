@@ -12,7 +12,7 @@ function fallbackAnalysis(decision) {
     ],
     risks: [
       '需要确认这次决定不是由短期情绪推动。',
-      '如果目标价、止损价或判断失效条件不清楚，后续复盘会变困难。'
+      '如果止损价或判断失效条件不清楚，后续复盘会变困难。'
     ],
     missingInfo: [
       '可以补充关键财务、估值或业务变化依据。',
@@ -26,7 +26,7 @@ function fallbackAnalysis(decision) {
     emotionCheck: decision.emotionalFlags?.length
       ? '你标记了情绪因素，建议先把情绪和事实分开写一遍。'
       : '目前没有明显标记情绪因素，但仍建议检查是否存在急于行动的压力。',
-    riskManagementCheck: '请确认目标价、止损价、持有周期和最大可接受亏损之间是一致的。',
+    riskManagementCheck: '请确认止损价、持有周期和最大可接受亏损之间是一致的。',
     finalReminder: '仅供思考参考，不构成投资建议。',
     provider: 'lunaris-codex-placeholder'
   };

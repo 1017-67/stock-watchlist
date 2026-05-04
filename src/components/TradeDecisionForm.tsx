@@ -132,10 +132,6 @@ export function TradeDecisionForm({ selectedStock, onSave }: Props) {
           <input value={decision.plannedPrice} onChange={(event) => update('plannedPrice', event.target.value)} inputMode="decimal" />
         </label>
         <label>
-          目标价是多少？
-          <input value={decision.targetPrice} onChange={(event) => update('targetPrice', event.target.value)} inputMode="decimal" />
-        </label>
-        <label>
           止损价是多少？
           <input value={decision.stopLoss} onChange={(event) => update('stopLoss', event.target.value)} inputMode="decimal" />
         </label>

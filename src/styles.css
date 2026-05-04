@@ -520,6 +520,22 @@ textarea:focus {
   background: #fffcf7;
 }
 
+.chart-tooltip {
+  display: grid;
+  gap: 8px;
+  min-width: 170px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 254, 250, 0.96);
+  color: var(--text);
+}
+
+.chart-tooltip strong {
+  color: #b98521;
+  font-weight: 650;
+}
+
 .detail-notes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

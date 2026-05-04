@@ -136,15 +136,6 @@ function formatHistoryLabel(timestampMs, symbol, range) {
   }).format(new Date(timestampMs));
 }
 
-function formatHistoryTime(timestampMs, symbol) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: inferTimeZone(symbol)
-  }).format(new Date(timestampMs));
-}
-
 export async function searchSymbols(query) {
   const trimmed = query?.trim();
   if (!trimmed) return [];

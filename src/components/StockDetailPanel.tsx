@@ -1,6 +1,6 @@
 import { RefreshCw } from 'lucide-react';
 import type { HistoryPoint, PriceRange, WatchStock } from '../types';
-import { formatCurrency, formatPercent } from '../utils/format';
+import { currencyForSymbol, formatCurrency, formatPercent } from '../utils/format';
 import { PriceChart } from './PriceChart';
 
 interface Props {
@@ -38,6 +38,7 @@ export function StockDetailPanel({
   }
 
   const changeClass = (stock.quote?.change ?? 0) >= 0 ? 'positive' : 'negative';
+  const currency = stock.quote?.currency || currencyForSymbol(stock.symbol);
 
   return (
     <section className="panel detail-panel">
@@ -47,9 +48,9 @@ export function StockDetailPanel({
           <p>{stock.companyName}</p>
         </div>
         <div className="quote-large">
-          <strong>{formatCurrency(stock.quote?.currentPrice)}</strong>
+          <strong>{formatCurrency(stock.quote?.currentPrice, currency)}</strong>
           <span className={changeClass}>
-            {formatCurrency(stock.quote?.change)} · {formatPercent(stock.quote?.changePercent)}
+            {formatCurrency(stock.quote?.change, currency)} · {formatPercent(stock.quote?.changePercent)}
           </span>
         </div>
       </div>
@@ -59,6 +60,7 @@ export function StockDetailPanel({
         range={range}
         loading={loadingHistory}
         error={chartError}
+        currency={currency}
         onRangeChange={onRangeChange}
         onRetry={onRetryHistory}
       />
@@ -81,7 +83,7 @@ export function StockDetailPanel({
       {stock.type === 'holding' && (
         <div className="holding-summary">
           <span>持有数量：{stock.shares || 0}</span>
-          <span>平均买入价：{formatCurrency(stock.avgBuyPrice)}</span>
+          <span>平均买入价：{formatCurrency(stock.avgBuyPrice, currency)}</span>
           <span>买入日期：{stock.buyDate || '—'}</span>
         </div>
       )}

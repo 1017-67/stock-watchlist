@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import type { JournalEntry, TradeAction } from '../types';
-import { formatCurrency } from '../utils/format';
+import { currencyForSymbol, formatCurrency } from '../utils/format';
 import { EmptyState } from './EmptyState';
 
 interface Props {
@@ -53,7 +53,7 @@ export function Journal({ entries, onUpdate }: Props) {
                 <button type="button" className="journal-summary" onClick={() => setExpandedId(expanded ? undefined : entry.id)}>
                   <span><strong>{entry.ticker}</strong>{entry.companyName && <small>{entry.companyName}</small>}</span>
                   <span>{entry.action}</span>
-                  <span>{formatCurrency(Number(entry.plannedPrice || entry.currentPrice || 0))}</span>
+                  <span>{formatCurrency(Number(entry.plannedPrice || entry.currentPrice || 0), currencyForSymbol(entry.ticker))}</span>
                   <span>{entry.createdAt}</span>
                   <ChevronDown size={16} className={expanded ? 'rotated' : ''} />
                 </button>
@@ -62,7 +62,6 @@ export function Journal({ entries, onUpdate }: Props) {
                     <div className="detail-grid">
                       <p><strong>为什么现在要这样做？</strong>{entry.reason}</p>
                       <p><strong>核心判断</strong>{entry.thesis}</p>
-                      <p><strong>目标价</strong>{entry.targetPrice || '—'}</p>
                       <p><strong>止损价</strong>{entry.stopLoss || '—'}</p>
                       <p><strong>计划持有多久</strong>{entry.timeHorizon || '—'}</p>
                       <p><strong>最大可接受亏损</strong>{entry.maxLoss || '—'}</p>

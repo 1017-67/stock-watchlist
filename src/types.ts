@@ -60,7 +60,6 @@ export interface TradeDecision {
 export interface LocalCheckResult {
   status: 'good' | 'needs-work';
   items: Array<{ label: string; level: 'ok' | 'warn'; detail?: string }>;
-  rewardRisk?: number;
 }
 
 export interface AIAnalysis {
