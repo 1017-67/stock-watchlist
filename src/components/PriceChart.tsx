@@ -1,4 +1,4 @@
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { HistoryPoint, PriceRange } from '../types';
 import { formatCurrency } from '../utils/format';
 import { LoadingState } from './LoadingState';
@@ -17,9 +17,10 @@ interface Props {
   loading: boolean;
   error?: string;
   onRangeChange: (range: PriceRange) => void;
+  onRetry: () => void;
 }
 
-export function PriceChart({ data, range, loading, error, onRangeChange }: Props) {
+export function PriceChart({ data, range, loading, error, onRangeChange, onRetry }: Props) {
   return (
     <div className="chart-block">
       <div className="range-tabs">
@@ -37,28 +38,41 @@ export function PriceChart({ data, range, loading, error, onRangeChange }: Props
       {loading ? (
         <LoadingState label="正在加载价格走势…" />
       ) : error ? (
-        <div className="soft-error">{error}</div>
+        <div className="chart-empty">
+          <span>暂时无法获取价格走势</span>
+          <button type="button" onClick={onRetry}>重试</button>
+        </div>
       ) : data.length === 0 ? (
-        <div className="soft-error">暂无可用历史价格。1日走势可能受免费行情权限限制。</div>
+        <div className="chart-empty">
+          <span>暂时无法获取价格走势</span>
+          <button type="button" onClick={onRetry}>重试</button>
+        </div>
       ) : (
-        <ResponsiveContainer width="100%" height={240}>
-          <LineChart data={data} margin={{ top: 18, right: 18, left: 0, bottom: 8 }}>
-            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} minTickGap={28} />
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={data} margin={{ top: 18, right: 18, left: 0, bottom: 8 }}>
+            <defs>
+              <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#b98521" stopOpacity={0.22} />
+                <stop offset="100%" stopColor="#b98521" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="#eadfce" strokeDasharray="3 5" vertical={false} />
+            <XAxis dataKey="time" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#7f766a' }} minTickGap={28} />
             <YAxis
               width={68}
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 12, fill: '#7f766a' }}
               tickFormatter={(value) => formatCurrency(Number(value))}
               domain={['dataMin', 'dataMax']}
             />
             <Tooltip
               formatter={(value) => [formatCurrency(Number(value)), '价格']}
-              labelFormatter={(label) => `日期：${label}`}
+              labelFormatter={(label) => `时间：${label}`}
               contentStyle={{ borderRadius: 8, border: '1px solid #ded8cf', boxShadow: 'none' }}
             />
-            <Line type="monotone" dataKey="price" stroke="#7b5f3d" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-          </LineChart>
+            <Area type="monotone" dataKey="price" stroke="#b98521" strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 4 }} />
+          </AreaChart>
         </ResponsiveContainer>
       )}
     </div>

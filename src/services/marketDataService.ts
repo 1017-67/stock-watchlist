@@ -23,8 +23,8 @@ export async function getQuote(symbol: string) {
 }
 
 export async function getPriceHistory(symbol: string, range: PriceRange) {
-  const data = await getJson<{ history: HistoryPoint[] }>(
+  const data = await getJson<HistoryPoint[] | { history: HistoryPoint[] }>(
     `/api/market/history?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range)}`
   );
-  return data.history;
+  return Array.isArray(data) ? data : data.history;
 }

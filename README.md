@@ -51,17 +51,17 @@ Finnhub key 可以在 [Finnhub](https://finnhub.io/) 注册后获取。当前 v1
 
 - `server/codexAnalysisService.js`
 
-默认会尝试：
+默认会按 Lunaris 当前方向使用 Codex 作为服务端 auth/runtime 层：
 
 ```bash
-lunaris-ai chat --model openai/gpt-5.5 "<prompt>"
+codex exec --json -m gpt-5.5 --sandbox read-only -
 ```
 
 可以通过 `.env.local` 调整：
 
 ```bash
-LUNARIS_AI_CLI=lunaris-ai
-LUNARIS_CODEX_MODEL=openai/gpt-5.5
+LUNARIS_CODEX_CLI=codex
+LUNARIS_CODEX_MODEL=gpt-5.5
 ```
 
 如果当前机器没有可用的 Lunaris Codex runtime，接口会返回明确的本地占位反思，UI 会继续允许保存笔记。等 Lunaris 后续暴露稳定 HTTP provider route 时，把连接逻辑接到 `server/codexAnalysisService.js` 中的注释位置即可。

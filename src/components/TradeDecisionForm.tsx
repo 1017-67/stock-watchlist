@@ -1,5 +1,5 @@
 import { Bot, Save } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { analyzeTrade } from '../services/aiAnalysisService';
 import { runLocalTradeChecks } from '../services/analysisService';
 import type { AIAnalysis, JournalEntry, TradeDecision, WatchStock } from '../types';
@@ -43,6 +43,19 @@ export function TradeDecisionForm({ selectedStock, onSave }: Props) {
   const [loadingAi, setLoadingAi] = useState(false);
 
   const localResult = useMemo(() => runLocalTradeChecks(decision), [decision]);
+
+  useEffect(() => {
+    if (!selectedStock) return;
+    setDecision((current) => ({
+      ...current,
+      ticker: selectedStock.symbol,
+      companyName: selectedStock.companyName,
+      currentPrice: selectedStock.quote?.currentPrice ? String(selectedStock.quote.currentPrice) : current.currentPrice,
+      thesis: current.ticker === selectedStock.symbol ? current.thesis : selectedStock.thesis || ''
+    }));
+    setAnalysis(undefined);
+    setAiError('');
+  }, [selectedStock]);
 
   function update(field: keyof TradeDecision, value: string | string[]) {
     setDecision((current) => ({ ...current, [field]: value }));

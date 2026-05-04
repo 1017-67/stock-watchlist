@@ -5,16 +5,23 @@ export type PriceRange = '1D' | '1W' | '1M' | '6M' | '1Y';
 
 export interface Quote {
   symbol: string;
+  currency?: string;
   currentPrice: number;
   change: number;
   changePercent: number;
+  high?: number;
+  low?: number;
+  open?: number;
+  previousClose?: number;
   timestamp: number;
   source: string;
 }
 
 export interface HistoryPoint {
-  date: string;
+  time: string;
   price: number;
+  currency?: string;
+  volume?: number;
 }
 
 export interface WatchStock {

@@ -50,9 +50,10 @@ app.get('/api/market/quote', async (req, res) => {
 
 app.get('/api/market/history', async (req, res) => {
   try {
-    res.json({
-      history: await getPriceHistory(String(req.query.symbol || ''), String(req.query.range || '1M'))
-    });
+    const symbol = String(req.query.symbol || '');
+    const range = String(req.query.range || '1M');
+    const history = await getPriceHistory(symbol, range);
+    res.json(history);
   } catch {
     marketError(res);
   }

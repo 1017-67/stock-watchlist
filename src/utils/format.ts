@@ -1,10 +1,18 @@
-export function formatCurrency(value?: number) {
+export function formatCurrency(value?: number, currency = 'USD') {
   if (value === undefined || Number.isNaN(value)) return '—';
   return new Intl.NumberFormat('zh-CN', {
     style: 'currency',
-    currency: 'USD',
+    currency,
     maximumFractionDigits: 2
   }).format(value);
+}
+
+export function currencyForSymbol(symbol?: string, fallback = 'USD') {
+  const normalized = symbol?.toUpperCase() || '';
+  if (normalized.endsWith('.SS') || normalized.endsWith('.SZ')) return 'CNY';
+  if (normalized.endsWith('.HK')) return 'HKD';
+  if (normalized.endsWith('.T')) return 'JPY';
+  return fallback;
 }
 
 export function formatPercent(value?: number) {

@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppShell } from './components/AppShell';
-import { HoldingsPanel } from './components/HoldingsPanel';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppShell, type AppTab } from './components/AppShell';
 import { Journal } from './components/Journal';
 import { StockDetailPanel } from './components/StockDetailPanel';
 import { TradeDecisionForm } from './components/TradeDecisionForm';
@@ -16,13 +15,15 @@ export default function App() {
   const [journal, setJournal] = useState<JournalEntry[]>(() => loadJournal());
   const [selectedId, setSelectedId] = useState<string | undefined>(() => loadWatchlist()[0]?.id);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const [range, setRange] = useState<PriceRange>('1M');
+  const [range, setRange] = useState<PriceRange>('1D');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [chartError, setChartError] = useState('');
+  const [activeTab, setActiveTab] = useState<AppTab>('current');
   const didInitialRefresh = useRef(false);
 
   const selectedStock = stocks.find((stock) => stock.id === selectedId);
-  const holdings = useMemo(() => stocks.filter((stock) => stock.type === 'holding'), [stocks]);
+  const selectedStockId = selectedStock?.id;
+  const selectedStockSymbol = selectedStock?.symbol;
 
   useEffect(() => {
     saveWatchlist(stocks);
@@ -52,18 +53,85 @@ export default function App() {
     }
   }, [refreshQuotes, stocks]);
 
-  useEffect(() => {
-    if (!selectedStock) {
+  const loadHistory = useCallback(async (stock: WatchStock | undefined, requestedRange: PriceRange) => {
+    if (!stock) {
       setHistory([]);
       return;
     }
 
-    let cancelled = false;
     setLoadingHistory(true);
     setChartError('');
-    getPriceHistory(selectedStock.symbol, range)
+    return getPriceHistory(stock.symbol, requestedRange)
       .then((data) => {
-        if (!cancelled) setHistory(data);
+        setHistory(data);
+        const lastPrice = data.at(-1)?.price;
+        if (requestedRange === '1D' && lastPrice) {
+          setStocks((current) =>
+            current.map((item) =>
+              item.id === stock.id
+                ? {
+                    ...item,
+                    quote: item.quote
+                      ? {
+                          ...item.quote,
+                          currentPrice: lastPrice,
+                          change: item.quote.previousClose ? lastPrice - item.quote.previousClose : item.quote.change,
+                          changePercent: item.quote.previousClose
+                            ? ((lastPrice - item.quote.previousClose) / item.quote.previousClose) * 100
+                            : item.quote.changePercent
+                        }
+                      : item.quote
+                  }
+                : item
+            )
+          );
+        }
+      })
+      .catch(() => {
+        setHistory([]);
+        setChartError(MARKET_ERROR);
+      })
+      .finally(() => {
+        setLoadingHistory(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedStockId || !selectedStockSymbol) {
+      setHistory([]);
+      return;
+    }
+
+    setLoadingHistory(true);
+    setChartError('');
+    getPriceHistory(selectedStockSymbol, range)
+      .then((data) => {
+        if (!cancelled) {
+          setHistory(data);
+          const lastPrice = data.at(-1)?.price;
+          if (range === '1D' && lastPrice) {
+            setStocks((current) =>
+              current.map((item) =>
+                item.id === selectedStockId
+                  ? {
+                      ...item,
+                      quote: item.quote
+                        ? {
+                            ...item.quote,
+                            currentPrice: lastPrice,
+                            change: item.quote.previousClose ? lastPrice - item.quote.previousClose : item.quote.change,
+                            changePercent: item.quote.previousClose
+                              ? ((lastPrice - item.quote.previousClose) / item.quote.previousClose) * 100
+                              : item.quote.changePercent
+                          }
+                        : item.quote
+                    }
+                  : item
+              )
+            );
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -74,11 +142,10 @@ export default function App() {
       .finally(() => {
         if (!cancelled) setLoadingHistory(false);
       });
-
     return () => {
       cancelled = true;
     };
-  }, [selectedStock, range]);
+  }, [selectedStockId, selectedStockSymbol, range]);
 
   function addStock(stock: WatchStock) {
     setStocks((current) => [stock, ...current.filter((item) => item.symbol !== stock.symbol)]);
@@ -100,9 +167,9 @@ export default function App() {
   }
 
   return (
-    <AppShell>
-      <main className="main-grid">
-        <div className="left-column">
+    <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
+      {activeTab === 'current' && (
+        <main className="workspace-grid">
           <Watchlist
             stocks={stocks}
             selectedId={selectedId}
@@ -111,23 +178,33 @@ export default function App() {
             onSelect={setSelectedId}
             onRefresh={() => void refreshQuotes(stocks)}
           />
-          <HoldingsPanel holdings={holdings} />
-        </div>
-        <StockDetailPanel
-          stock={selectedStock}
-          history={history}
-          range={range}
-          loadingHistory={loadingHistory}
-          chartError={chartError}
-          onRangeChange={setRange}
-          onRefresh={() => selectedStock && void refreshQuotes([selectedStock])}
-          onRecord={(stock) => setSelectedId(stock.id)}
-        />
-      </main>
-      <main className="lower-grid">
-        <TradeDecisionForm selectedStock={selectedStock} onSave={saveEntry} />
-        <Journal entries={journal} onUpdate={updateEntry} />
-      </main>
+          <StockDetailPanel
+            stock={selectedStock}
+            history={history}
+            range={range}
+            loadingHistory={loadingHistory}
+            chartError={chartError}
+            onRangeChange={setRange}
+            onRetryHistory={() => void loadHistory(selectedStock, range)}
+            onRefresh={() => {
+              if (selectedStock) {
+                void refreshQuotes([selectedStock]);
+                void loadHistory(selectedStock, range);
+              }
+            }}
+            onRecord={(stock) => {
+              setSelectedId(stock.id);
+            }}
+          />
+          <TradeDecisionForm selectedStock={selectedStock} onSave={saveEntry} />
+        </main>
+      )}
+
+      {activeTab === 'journal' && (
+        <main className="journal-grid">
+          <Journal entries={journal} onUpdate={updateEntry} />
+        </main>
+      )}
     </AppShell>
   );
 }

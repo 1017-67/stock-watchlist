@@ -10,6 +10,7 @@ interface Props {
   loadingHistory: boolean;
   chartError?: string;
   onRangeChange: (range: PriceRange) => void;
+  onRetryHistory: () => void;
   onRefresh: () => void;
   onRecord: (stock: WatchStock) => void;
 }
@@ -21,6 +22,7 @@ export function StockDetailPanel({
   loadingHistory,
   chartError,
   onRangeChange,
+  onRetryHistory,
   onRefresh,
   onRecord
 }: Props) {
@@ -58,6 +60,7 @@ export function StockDetailPanel({
         loading={loadingHistory}
         error={chartError}
         onRangeChange={onRangeChange}
+        onRetry={onRetryHistory}
       />
 
       <div className="detail-notes">
