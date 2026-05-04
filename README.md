@@ -1,0 +1,106 @@
+# 投资笔记
+
+「投资笔记」是一个用于记录想法、检查风险、帮助复盘的小型中文 Web App。它可以管理自选股、记录持仓、查看真实行情和价格走势，并在买卖前整理交易计划。
+
+重要提醒：仅供思考参考，不构成投资建议。本工具不提供价格预测、交易指令或任何直接金融建议。
+
+## 功能
+
+- 自选股：搜索真实股票，添加关注理由、个人判断和备注。
+- 已持有：记录持有数量、平均买入价、买入日期，并用最新报价计算持仓市值和浮动盈亏。
+- 价格走势：通过后端行情服务加载历史价格，支持 1日、1周、1月、6月、1年。
+- 买卖前检查：在保存交易想法前做本地风险检查。
+- AI 思考辅助：前端调用本地 `/api/ai/analyze-trade`，服务端优先使用 Lunaris Codex provider/runtime。
+- 交易笔记：保存交易计划、本地检查结果、AI 分析结果，并支持 1 周后、1 个月后复盘。
+
+## 安装
+
+```bash
+npm install
+```
+
+## 配置行情 API
+
+复制环境变量示例：
+
+```bash
+cp .env.example .env.local
+```
+
+在 `.env.local` 填入服务端环境变量：
+
+```bash
+FINNHUB_API_KEY=你的 Finnhub API key
+ALPHA_VANTAGE_API_KEY=
+```
+
+Finnhub key 可以在 [Finnhub](https://finnhub.io/) 注册后获取。当前 v1 使用 Finnhub 的 symbol search、quote 和 candle API。代码已经把 `marketDataService` 独立出来，后续可以在同一层加入 Alpha Vantage fallback。
+
+不要把行情 key 写进前端代码。前端只调用本地 `/api/market/...` 路由。
+
+## AI 连接方式
+
+本项目沿用 Lunaris 的 provider/auth 分离思路：
+
+- UI 只调用本地 `POST /api/ai/analyze-trade`。
+- provider、模型选择和认证逻辑留在服务端。
+- 不在浏览器中输入或保存 Codex/OpenAI key。
+- 不把 token 暴露给前端 bundle。
+
+服务端文件：
+
+- `server/codexAnalysisService.js`
+
+默认会尝试：
+
+```bash
+lunaris-ai chat --model openai/gpt-5.5 "<prompt>"
+```
+
+可以通过 `.env.local` 调整：
+
+```bash
+LUNARIS_AI_CLI=lunaris-ai
+LUNARIS_CODEX_MODEL=openai/gpt-5.5
+```
+
+如果当前机器没有可用的 Lunaris Codex runtime，接口会返回明确的本地占位反思，UI 会继续允许保存笔记。等 Lunaris 后续暴露稳定 HTTP provider route 时，把连接逻辑接到 `server/codexAnalysisService.js` 中的注释位置即可。
+
+## 运行
+
+```bash
+npm run dev
+```
+
+前端默认运行在：
+
+```text
+http://127.0.0.1:5173
+```
+
+后端 API 默认运行在：
+
+```text
+http://127.0.0.1:8787
+```
+
+## 使用方式
+
+1. 在「自选股」搜索股票代码或公司名称。
+2. 添加股票，写下「今天为什么关注它？」和个人判断。
+3. 选择股票查看价格走势。
+4. 如果是持仓，记录数量、均价和买入日期。
+5. 在「买卖前检查」填写计划、目标价、止损价、判断失效条件和情绪状态。
+6. 点击「让 AI 帮我检查这次决定」查看思考辅助。
+7. 保存到「交易笔记」，后续补充 1 周后、1 个月后复盘。
+
+## 本地数据
+
+v1 使用 `localStorage` 保存：
+
+- watchlist
+- holdings
+- journal entries
+- UI preferences
+
+本地存储逻辑集中在 `src/services/storageService.ts`，方便后续迁移到数据库。
