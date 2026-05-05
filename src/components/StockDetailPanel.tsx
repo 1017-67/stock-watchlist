@@ -61,6 +61,7 @@ export function StockDetailPanel({
         loading={loadingHistory}
         error={chartError}
         currency={currency}
+        symbol={stock.symbol}
         onRangeChange={onRangeChange}
         onRetry={onRetryHistory}
       />

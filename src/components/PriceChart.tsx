@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { getPriceHistory } from '../services/marketDataService';
 import type { HistoryPoint, PriceRange } from '../types';
 import { formatCurrency } from '../utils/format';
 import { LoadingState } from './LoadingState';
@@ -17,6 +18,7 @@ interface Props {
   loading: boolean;
   error?: string;
   currency: string;
+  symbol: string;
   onRangeChange: (range: PriceRange) => void;
   onRetry: () => void;
 }
@@ -48,13 +50,19 @@ function getUniqueTickIndexes(length: number) {
   );
 }
 
-export function PriceChart({ data, range, loading, error, currency, onRangeChange, onRetry }: Props) {
+export function PriceChart({ data, range, loading, error, currency, symbol, onRangeChange, onRetry }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [directData, setDirectData] = useState<HistoryPoint[]>([]);
+  const [directLoading, setDirectLoading] = useState(false);
+  const [directError, setDirectError] = useState('');
   const shellRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const effectiveData = data.length ? data : directData;
+  const effectiveLoading = loading || directLoading;
+  const effectiveError = data.length ? '' : error || directError;
 
   const chart = useMemo(() => {
-    const validData = data.filter((point) => Number.isFinite(point.price) && point.price > 0);
+    const validData = effectiveData.filter((point) => Number.isFinite(point.price) && point.price > 0);
     if (validData.length === 0) {
       return {
         data: validData,
@@ -89,10 +97,33 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
       plotWidth,
       plotHeight
     };
-  }, [data]);
+  }, [effectiveData]);
 
   const activePoint = activeIndex === null ? undefined : chart.points[activeIndex];
   const lastPoint = lastItem(chart.points);
+
+  useEffect(() => {
+    let cancelled = false;
+    const hasParentData = data.some((point) => Number.isFinite(point.price) && point.price > 0);
+    if (!symbol || loading || hasParentData) return;
+
+    setDirectLoading(true);
+    setDirectError('');
+    getPriceHistory(symbol, range)
+      .then((history) => {
+        if (!cancelled) setDirectData(history);
+      })
+      .catch((caught) => {
+        if (!cancelled) setDirectError(caught instanceof Error ? caught.message : '暂时无法获取价格走势');
+      })
+      .finally(() => {
+        if (!cancelled) setDirectLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, loading, range, symbol]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -221,15 +252,24 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
           </button>
         ))}
       </div>
-      {!loading && !error && chart.data.length > 0 && (
-        <div className="chart-meta">已加载 {chart.data.length} 个价格点</div>
+      {!effectiveLoading && !effectiveError && chart.data.length > 0 && (
+        <div className="chart-meta">已加载 {chart.data.length} 个价格点 · {data.length ? '页面数据' : '直连行情'}</div>
       )}
-      {loading ? (
+      {effectiveLoading ? (
         <LoadingState label="正在加载价格走势…" />
-      ) : error ? (
+      ) : effectiveError && chart.data.length === 0 ? (
         <div className="chart-empty">
           <span>暂时无法获取价格走势</span>
-          <button type="button" onClick={onRetry}>重试</button>
+          <button
+            type="button"
+            onClick={() => {
+              setDirectData([]);
+              setDirectError('');
+              onRetry();
+            }}
+          >
+            重试
+          </button>
         </div>
       ) : chart.data.length === 0 ? (
         <div className="chart-empty">
@@ -244,6 +284,16 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
           onPointerLeave={() => setActiveIndex(null)}
         >
           <canvas ref={canvasRef} className="price-canvas" role="img" aria-label={`${range} 价格走势`} />
+          <div className="html-price-graph" aria-hidden="true">
+            {chart.points.map((point, index) => (
+              <span
+                key={`${point.time}-${index}`}
+                style={{
+                  height: `${Math.max(4, padding.top + chart.plotHeight - point.y)}px`
+                }}
+              />
+            ))}
+          </div>
 
           {activePoint && (
             <div

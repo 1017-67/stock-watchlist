@@ -562,6 +562,26 @@ textarea:focus {
   height: 300px;
 }
 
+.html-price-graph {
+  position: absolute;
+  left: 86px;
+  right: 22px;
+  bottom: 34px;
+  height: 248px;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  pointer-events: none;
+  opacity: 0.42;
+}
+
+.html-price-graph span {
+  flex: 1 1 1px;
+  min-width: 1px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, rgba(185, 133, 33, 0.5), rgba(185, 133, 33, 0.08));
+}
+
 .canvas-chart-tooltip {
   position: absolute;
   z-index: 3;
