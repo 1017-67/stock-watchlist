@@ -548,22 +548,21 @@ textarea:focus {
   font-weight: 650;
 }
 
-.svg-chart-shell {
+.canvas-chart-shell {
   position: relative;
-  width: 100%;
-  height: 300px;
-  overflow: visible;
-}
-
-.price-svg {
-  display: block;
   width: 100%;
   height: 300px;
   overflow: visible;
   touch-action: none;
 }
 
-.svg-chart-tooltip {
+.price-canvas {
+  display: block;
+  width: 100%;
+  height: 300px;
+}
+
+.canvas-chart-tooltip {
   position: absolute;
   z-index: 3;
   pointer-events: none;
