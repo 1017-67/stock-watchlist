@@ -2,6 +2,7 @@ import type { HistoryPoint, PriceRange, Quote } from '../types';
 
 const MARKET_ERROR = '暂时无法获取实时行情，请稍后再试。';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
+const REQUEST_TIMEOUT_MS = 12000;
 
 async function readJsonResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
@@ -15,11 +16,21 @@ async function readJsonResponse<T>(response: Response): Promise<T> {
 }
 
 async function getJson<T>(url: string): Promise<T> {
+  async function fetchWithTimeout(target: string) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      return await fetch(target, { signal: controller.signal });
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
   try {
-    return await readJsonResponse<T>(await fetch(url));
+    return await readJsonResponse<T>(await fetchWithTimeout(url));
   } catch (error) {
     if (!url.startsWith('/api')) throw error;
-    return readJsonResponse<T>(await fetch(`${API_BASE_URL}${url}`));
+    return readJsonResponse<T>(await fetchWithTimeout(`${API_BASE_URL}${url}`));
   }
 }
 

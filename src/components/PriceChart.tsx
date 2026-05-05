@@ -58,7 +58,7 @@ export function PriceChart({ data, range, loading, error, currency, symbol, onRa
   const shellRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const effectiveData = data.length ? data : directData;
-  const effectiveLoading = loading || directLoading;
+  const effectiveLoading = (loading || directLoading) && effectiveData.length === 0;
   const effectiveError = data.length ? '' : error || directError;
 
   const chart = useMemo(() => {
