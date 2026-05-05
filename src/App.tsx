@@ -12,7 +12,7 @@ import type { HistoryPoint, JournalEntry, PriceRange, Quote, WatchStock } from '
 const MARKET_ERROR = '暂时无法获取实时行情，请稍后再试。';
 
 function quoteFromHistory(stock: WatchStock, data: HistoryPoint[]): Quote | undefined {
-  const last = data.at(-1);
+  const last = data.length ? data[data.length - 1] : undefined;
   if (!last?.price) return stock.quote;
 
   const previousClose = stock.quote?.previousClose;
@@ -88,7 +88,7 @@ export default function App() {
     return getPriceHistory(stock.symbol, requestedRange)
       .then((data) => {
         setHistory(data);
-        const lastPrice = data.at(-1)?.price;
+        const lastPrice = data.length ? data[data.length - 1]?.price : undefined;
         if (requestedRange === '1D' && lastPrice) {
           setStocks((current) =>
             current.map((item) =>
@@ -124,7 +124,7 @@ export default function App() {
       .then((data) => {
         if (!cancelled) {
           setHistory(data);
-          const lastPrice = data.at(-1)?.price;
+          const lastPrice = data.length ? data[data.length - 1]?.price : undefined;
           if (range === '1D' && lastPrice) {
             setStocks((current) =>
               current.map((item) =>

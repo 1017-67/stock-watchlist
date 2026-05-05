@@ -497,6 +497,11 @@ textarea:focus {
   margin: 16px 0;
 }
 
+.chart-meta {
+  color: var(--faint);
+  font-size: 12px;
+}
+
 .range-tabs {
   display: flex;
   gap: 10px;

@@ -40,6 +40,10 @@ function toPath(points: Array<{ x: number; y: number }>) {
   return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
 }
 
+function lastItem<T>(items: T[]) {
+  return items.length ? items[items.length - 1] : undefined;
+}
+
 function getUniqueTickIndexes(length: number) {
   if (length <= 1) return [0];
   const wanted = Math.min(6, length);
@@ -81,8 +85,9 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
       return { ...point, x, y };
     });
 
+    const lastPoint = lastItem(points);
     const areaPath = points.length
-      ? `${toPath(points)} L ${points.at(-1)?.x.toFixed(2)} ${padding.top + plotHeight} L ${points[0].x.toFixed(2)} ${padding.top + plotHeight} Z`
+      ? `${toPath(points)} L ${lastPoint?.x.toFixed(2)} ${padding.top + plotHeight} L ${points[0].x.toFixed(2)} ${padding.top + plotHeight} Z`
       : '';
 
     return {
@@ -98,7 +103,7 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
   }, [data]);
 
   const activePoint = activeIndex === null ? undefined : chart.points[activeIndex];
-  const lastPoint = chart.points.at(-1);
+  const lastPoint = lastItem(chart.points);
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     if (chart.points.length === 0) return;
@@ -122,6 +127,9 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
           </button>
         ))}
       </div>
+      {!loading && !error && chart.data.length > 0 && (
+        <div className="chart-meta">已加载 {chart.data.length} 个价格点</div>
+      )}
       {loading ? (
         <LoadingState label="正在加载价格走势…" />
       ) : error ? (
@@ -152,7 +160,8 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
             </defs>
 
             {chart.yTicks.map((tick) => {
-              const y = padding.top + ((chart.yTicks.at(-1)! - tick) / (chart.yTicks.at(-1)! - chart.yTicks[0] || 1)) * chart.plotHeight;
+              const lastTick = lastItem(chart.yTicks) ?? tick;
+              const y = padding.top + ((lastTick - tick) / (lastTick - chart.yTicks[0] || 1)) * chart.plotHeight;
               return (
                 <g key={tick}>
                   <line
