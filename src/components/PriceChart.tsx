@@ -1,4 +1,4 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useMemo, useState, type PointerEvent } from 'react';
 import type { HistoryPoint, PriceRange } from '../types';
 import { formatCurrency } from '../utils/format';
 import { LoadingState } from './LoadingState';
@@ -21,29 +21,93 @@ interface Props {
   onRetry: () => void;
 }
 
-function ChartTooltip({
-  active,
-  payload,
-  label,
-  currency
-}: {
-  active?: boolean;
-  payload?: Array<{ value?: number }>;
-  label?: string;
-  currency: string;
-}) {
-  if (!active || !payload?.length) return null;
-  const price = Number(payload[0]?.value);
+const chartWidth = 760;
+const chartHeight = 300;
+const padding = { top: 18, right: 22, bottom: 34, left: 86 };
 
-  return (
-    <div className="chart-tooltip">
-      <div>时间：{label}</div>
-      <strong>价格：{formatCurrency(price, currency)}</strong>
-    </div>
+function niceTicks(min: number, max: number) {
+  if (min === max) {
+    const spread = Math.max(Math.abs(min) * 0.01, 1);
+    return [min - spread, min, min + spread];
+  }
+
+  const ticks = 4;
+  const step = (max - min) / (ticks - 1);
+  return Array.from({ length: ticks }, (_, index) => min + step * index);
+}
+
+function toPath(points: Array<{ x: number; y: number }>) {
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+}
+
+function getUniqueTickIndexes(length: number) {
+  if (length <= 1) return [0];
+  const wanted = Math.min(6, length);
+  return Array.from({ length: wanted }, (_, index) => Math.round((index * (length - 1)) / (wanted - 1))).filter(
+    (item, index, list) => list.indexOf(item) === index
   );
 }
 
 export function PriceChart({ data, range, loading, error, currency, onRangeChange, onRetry }: Props) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const chart = useMemo(() => {
+    const validData = data.filter((point) => Number.isFinite(point.price) && point.price > 0);
+    if (validData.length === 0) {
+      return {
+        data: validData,
+        points: [],
+        linePath: '',
+        areaPath: '',
+        yTicks: [],
+        xTickIndexes: [],
+        plotWidth: chartWidth - padding.left - padding.right,
+        plotHeight: chartHeight - padding.top - padding.bottom
+      };
+    }
+
+    const prices = validData.map((point) => point.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const yPadding = Math.max((maxPrice - minPrice) * 0.08, Math.abs(maxPrice || 1) * 0.002, 0.01);
+    const yMin = minPrice - yPadding;
+    const yMax = maxPrice + yPadding;
+    const plotWidth = chartWidth - padding.left - padding.right;
+    const plotHeight = chartHeight - padding.top - padding.bottom;
+
+    const points = validData.map((point, index) => {
+      const x = padding.left + (validData.length === 1 ? plotWidth : (index / (validData.length - 1)) * plotWidth);
+      const y = padding.top + ((yMax - point.price) / (yMax - yMin || 1)) * plotHeight;
+      return { ...point, x, y };
+    });
+
+    const areaPath = points.length
+      ? `${toPath(points)} L ${points.at(-1)?.x.toFixed(2)} ${padding.top + plotHeight} L ${points[0].x.toFixed(2)} ${padding.top + plotHeight} Z`
+      : '';
+
+    return {
+      data: validData,
+      points,
+      linePath: toPath(points),
+      areaPath,
+      yTicks: niceTicks(yMin, yMax),
+      xTickIndexes: getUniqueTickIndexes(validData.length),
+      plotWidth,
+      plotHeight
+    };
+  }, [data]);
+
+  const activePoint = activeIndex === null ? undefined : chart.points[activeIndex];
+  const lastPoint = chart.points.at(-1);
+
+  function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
+    if (chart.points.length === 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * chartWidth;
+    const ratio = Math.min(1, Math.max(0, (x - padding.left) / chart.plotWidth));
+    setActiveIndex(Math.round(ratio * (chart.points.length - 1)));
+  }
+
   return (
     <div className="chart-block">
       <div className="range-tabs">
@@ -65,37 +129,74 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
           <span>暂时无法获取价格走势</span>
           <button type="button" onClick={onRetry}>重试</button>
         </div>
-      ) : data.length === 0 ? (
+      ) : chart.data.length === 0 ? (
         <div className="chart-empty">
           <span>暂时无法获取价格走势</span>
           <button type="button" onClick={onRetry}>重试</button>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data} margin={{ top: 18, right: 18, left: 16, bottom: 8 }}>
+        <div className="svg-chart-shell">
+          <svg
+            className="price-svg"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            role="img"
+            aria-label={`${range} 价格走势`}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={() => setActiveIndex(null)}
+          >
             <defs>
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#b98521" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="#b98521" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="#b98521" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="#b98521" stopOpacity="0.02" />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#eadfce" strokeDasharray="3 5" vertical={false} />
-            <XAxis dataKey="time" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#7f766a' }} minTickGap={28} />
-            <YAxis
-              width={84}
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 12, fill: '#7f766a' }}
-              tickFormatter={(value) => formatCurrency(Number(value), currency)}
-              domain={['dataMin', 'dataMax']}
-            />
-            <Tooltip
-              content={<ChartTooltip currency={currency} />}
-              cursor={{ stroke: '#c7b8a0', strokeWidth: 1 }}
-            />
-            <Area type="monotone" dataKey="price" stroke="#b98521" strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 4 }} />
-          </AreaChart>
-        </ResponsiveContainer>
+
+            {chart.yTicks.map((tick) => {
+              const y = padding.top + ((chart.yTicks.at(-1)! - tick) / (chart.yTicks.at(-1)! - chart.yTicks[0] || 1)) * chart.plotHeight;
+              return (
+                <g key={tick}>
+                  <line x1={padding.left} x2={chartWidth - padding.right} y1={y} y2={y} className="chart-grid-line" />
+                  <text x={padding.left - 12} y={y + 4} textAnchor="end" className="chart-axis-text">
+                    {formatCurrency(tick, currency)}
+                  </text>
+                </g>
+              );
+            })}
+
+            <path d={chart.areaPath} className="chart-area" fill="url(#priceFill)" />
+            <path d={chart.linePath} className="chart-line" />
+
+            {chart.xTickIndexes.map((index) => {
+              const point = chart.points[index];
+              return (
+                <text key={`${point.time}-${index}`} x={point.x} y={chartHeight - 8} textAnchor="middle" className="chart-axis-text">
+                  {point.time}
+                </text>
+              );
+            })}
+
+            {activePoint && (
+              <g>
+                <line x1={activePoint.x} x2={activePoint.x} y1={padding.top} y2={padding.top + chart.plotHeight} className="chart-cursor-line" />
+                <circle cx={activePoint.x} cy={activePoint.y} r="4" className="chart-dot" />
+              </g>
+            )}
+            {lastPoint && !activePoint && <circle cx={lastPoint.x} cy={lastPoint.y} r="4" className="chart-dot" />}
+          </svg>
+
+          {activePoint && (
+            <div
+              className="chart-tooltip svg-chart-tooltip"
+              style={{
+                left: `${(activePoint.x / chartWidth) * 100}%`,
+                top: `${Math.max(16, activePoint.y - 70)}px`
+              }}
+            >
+              <div>时间：{activePoint.time}</div>
+              <strong>价格：{formatCurrency(activePoint.price, currency)}</strong>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
