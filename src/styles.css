@@ -558,40 +558,6 @@ textarea:focus {
   touch-action: none;
 }
 
-.chart-grid-line {
-  stroke: #eadfce;
-  stroke-width: 1;
-  stroke-dasharray: 3 5;
-}
-
-.chart-axis-text {
-  fill: #7f766a;
-  font-size: 12px;
-}
-
-.chart-area {
-  fill: url(#priceFill);
-}
-
-.chart-line {
-  fill: none;
-  stroke: #b98521;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.chart-cursor-line {
-  stroke: #c7b8a0;
-  stroke-width: 1;
-}
-
-.chart-dot {
-  fill: #b98521;
-  stroke: #fffefa;
-  stroke-width: 2;
-}
-
 .svg-chart-tooltip {
   position: absolute;
   z-index: 3;

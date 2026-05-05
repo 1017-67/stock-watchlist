@@ -155,21 +155,29 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
               const y = padding.top + ((chart.yTicks.at(-1)! - tick) / (chart.yTicks.at(-1)! - chart.yTicks[0] || 1)) * chart.plotHeight;
               return (
                 <g key={tick}>
-                  <line x1={padding.left} x2={chartWidth - padding.right} y1={y} y2={y} className="chart-grid-line" />
-                  <text x={padding.left - 12} y={y + 4} textAnchor="end" className="chart-axis-text">
+                  <line
+                    x1={padding.left}
+                    x2={chartWidth - padding.right}
+                    y1={y}
+                    y2={y}
+                    stroke="#eadfce"
+                    strokeWidth="1"
+                    strokeDasharray="3 5"
+                  />
+                  <text x={padding.left - 12} y={y + 4} textAnchor="end" fill="#7f766a" fontSize="12">
                     {formatCurrency(tick, currency)}
                   </text>
                 </g>
               );
             })}
 
-            <path d={chart.areaPath} className="chart-area" fill="url(#priceFill)" />
-            <path d={chart.linePath} className="chart-line" />
+            <path d={chart.areaPath} fill="url(#priceFill)" />
+            <path d={chart.linePath} fill="none" stroke="#b98521" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
             {chart.xTickIndexes.map((index) => {
               const point = chart.points[index];
               return (
-                <text key={`${point.time}-${index}`} x={point.x} y={chartHeight - 8} textAnchor="middle" className="chart-axis-text">
+                <text key={`${point.time}-${index}`} x={point.x} y={chartHeight - 8} textAnchor="middle" fill="#7f766a" fontSize="12">
                   {point.time}
                 </text>
               );
@@ -177,11 +185,11 @@ export function PriceChart({ data, range, loading, error, currency, onRangeChang
 
             {activePoint && (
               <g>
-                <line x1={activePoint.x} x2={activePoint.x} y1={padding.top} y2={padding.top + chart.plotHeight} className="chart-cursor-line" />
-                <circle cx={activePoint.x} cy={activePoint.y} r="4" className="chart-dot" />
+                <line x1={activePoint.x} x2={activePoint.x} y1={padding.top} y2={padding.top + chart.plotHeight} stroke="#c7b8a0" strokeWidth="1" />
+                <circle cx={activePoint.x} cy={activePoint.y} r="4" fill="#b98521" stroke="#fffefa" strokeWidth="2" />
               </g>
             )}
-            {lastPoint && !activePoint && <circle cx={lastPoint.x} cy={lastPoint.y} r="4" className="chart-dot" />}
+            {lastPoint && !activePoint && <circle cx={lastPoint.x} cy={lastPoint.y} r="4" fill="#b98521" stroke="#fffefa" strokeWidth="2" />}
           </svg>
 
           {activePoint && (
