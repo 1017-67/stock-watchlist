@@ -183,9 +183,16 @@ footer {
 }
 
 .watchlist-panel,
-.trade-panel {
+.right-rail {
   position: sticky;
   top: 16px;
+}
+
+.right-rail {
+  display: grid;
+  gap: 16px;
+  max-height: calc(100vh - 118px);
+  overflow: auto;
 }
 
 .section-header,
@@ -606,11 +613,6 @@ textarea:focus {
   gap: 3px;
 }
 
-.trade-panel {
-  max-height: calc(100vh - 118px);
-  overflow: auto;
-}
-
 .trade-panel .section-header {
   align-items: flex-start;
 }
@@ -704,6 +706,94 @@ textarea:focus {
   font-weight: 650;
 }
 
+.ai-chat-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-chat-panel .section-header {
+  margin-bottom: 0;
+}
+
+.ai-chat-panel .section-header svg {
+  color: var(--accent-dark);
+  margin-top: 3px;
+}
+
+.chat-thread {
+  display: grid;
+  gap: 10px;
+}
+
+.chat-empty {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fffcf7;
+  padding: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.chat-empty p,
+.chat-message p,
+.chat-reminder {
+  margin: 0;
+}
+
+.chat-empty span,
+.chat-reminder {
+  color: var(--faint);
+  font-size: 13px;
+}
+
+.chat-message {
+  display: grid;
+  gap: 6px;
+  max-width: 92%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.chat-message.user {
+  justify-self: end;
+  background: #fff4df;
+  color: var(--accent-dark);
+}
+
+.chat-message.assistant {
+  justify-self: start;
+  background: #fff;
+  color: var(--muted);
+}
+
+.chat-status {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.chat-error {
+  padding: 12px;
+}
+
+.chat-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.chat-composer textarea {
+  min-height: 72px;
+}
+
+.chat-composer .primary-button {
+  min-width: 84px;
+  height: 42px;
+}
+
 .journal-filters {
   justify-content: flex-start;
   margin-bottom: 12px;
@@ -788,7 +878,7 @@ footer {
   }
 
   .watchlist-panel,
-  .trade-panel {
+  .right-rail {
     position: static;
     max-height: none;
   }
@@ -835,8 +925,13 @@ footer {
 
   .detail-top,
   .section-header,
-  .form-actions {
+  .form-actions,
+  .chat-composer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .chat-composer {
+    grid-template-columns: 1fr;
   }
 }

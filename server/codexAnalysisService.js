@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 
 export const TRADE_ANALYSIS_SYSTEM_PROMPT = `You are a cautious trading decision reflection assistant. You do not provide financial advice, price predictions, trading signals, or direct buy/sell recommendations. You help the user examine reasoning quality, risk management, missing information, emotional bias, and whether the trade plan is clear. Always respond in Simplified Chinese. Be kind, calm, and practical. Always remind the user that this is only for reflection and does not constitute investment advice. Return only valid JSON with keys: summary, strengths, risks, missingInfo, questionsToConsider, emotionCheck, riskManagementCheck, finalReminder.`;
 
+export const AI_CHAT_SYSTEM_PROMPT = `You are a cautious investment reflection chat assistant for an app named 投资笔记. You do not provide financial advice, price predictions, trading signals, direct buy/sell recommendations, or commands. You help the user clarify their own thinking, identify missing information, examine risk management, and separate facts from emotion. Always respond in Simplified Chinese. Be concise, warm, and practical. If the user asks whether to buy or sell, redirect to questions and risk checks instead of answering directly. End with a short reminder that this is only for reflection and does not constitute investment advice.`;
+
 function fallbackAnalysis(decision) {
   const basis = Array.isArray(decision.basis) ? decision.basis.join('、') : decision.basis || '未填写';
   return {
@@ -66,6 +68,24 @@ function parseCodexJsonEvents(text) {
   throw new Error('Codex JSON event output did not include an agent message');
 }
 
+function parseCodexTextEvents(text) {
+  const lines = text.split('\n').filter(Boolean);
+  for (const line of lines.reverse()) {
+    try {
+      const event = JSON.parse(line);
+      if (event?.type === 'item.completed' && event.item?.type === 'agent_message' && event.item.text) {
+        return event.item.text.trim();
+      }
+    } catch {
+      // Non-JSON log lines are ignored.
+    }
+  }
+
+  const trimmed = text.trim();
+  if (trimmed) return trimmed;
+  throw new Error('Codex output did not include an agent message');
+}
+
 function runCodexExec(cli, args, input) {
   return new Promise((resolve, reject) => {
     const child = spawn(cli, args, {
@@ -98,37 +118,153 @@ function runCodexExec(cli, args, input) {
   });
 }
 
-export async function analyzeTradeDecision(decision) {
+function resolveHttpProvider() {
+  const apiKey = process.env.LUNARIS_AI_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) return undefined;
+
+  return {
+    apiKey,
+    baseUrl: (process.env.LUNARIS_AI_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+    model: process.env.LUNARIS_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  };
+}
+
+export function getAiProviderStatus() {
+  if (resolveHttpProvider()) return 'lunaris-http-or-openai';
+  return 'lunaris-codex-or-placeholder';
+}
+
+async function runHttpChat(systemPrompt, userPrompt, options = {}) {
+  const provider = resolveHttpProvider();
+  if (!provider) throw new Error('No server-side HTTP AI provider configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.LUNARIS_AI_TIMEOUT_MS || 45000));
+
+  try {
+    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${provider.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: provider.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2,
+        ...(options.json ? { response_format: { type: 'json_object' } } : {})
+      }),
+      signal: controller.signal
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.error?.message || `HTTP AI provider returned ${response.status}`);
+    }
+
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('HTTP AI provider returned an empty message');
+    return content.trim();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function runCodexPrompt(prompt, parser) {
   const cli = process.env.LUNARIS_CODEX_CLI || 'codex';
   const modelRef = process.env.LUNARIS_CODEX_MODEL || 'gpt-5.5';
   const model = modelRef.replace(/^openai\//, '');
-  const prompt = `${TRADE_ANALYSIS_SYSTEM_PROMPT}\n\nTrade decision JSON:\n${JSON.stringify(decision, null, 2)}`;
+
+  // Same Lunaris direction: Codex is the server-side auth/runtime layer.
+  // The browser only calls this local API route; it never receives tokens.
+  const { stdout, stderr } = await runCodexExec(cli, [
+    'exec',
+    '--json',
+    '-m',
+    model,
+    '--skip-git-repo-check',
+    '--sandbox',
+    'read-only',
+    '-'
+  ], prompt);
 
   try {
-    // Same Lunaris direction: Codex is the server-side auth/runtime layer.
-    // The browser only calls this local API route; it never receives tokens.
-    const { stdout, stderr } = await runCodexExec(cli, [
-      'exec',
-      '--json',
-      '-m',
-      model,
-      '--skip-git-repo-check',
-      '--sandbox',
-      'read-only',
-      '-'
-    ], prompt);
+    return parser(stdout);
+  } catch {
+    return parser(`${stdout}\n${stderr}`);
+  }
+}
 
+function shouldTryCodexFirst() {
+  return (process.env.LUNARIS_AI_PROVIDER || 'auto').toLowerCase() !== 'http';
+}
+
+export async function analyzeTradeDecision(decision) {
+  const userPrompt = `Trade decision JSON:\n${JSON.stringify(decision, null, 2)}`;
+  const codexPrompt = `${TRADE_ANALYSIS_SYSTEM_PROMPT}\n\n${userPrompt}`;
+
+  if (shouldTryCodexFirst()) {
     try {
-      return { ...parseCodexJsonEvents(stdout), provider: 'lunaris-codex' };
-    } catch {
-      // Fall through to output-file/stdout parsing for older Codex builds.
+      return { ...await runCodexPrompt(codexPrompt, parseCodexJsonEvents), provider: 'lunaris-codex' };
+    } catch (error) {
+      console.warn('[ai-analysis] Lunaris Codex bridge unavailable:', error instanceof Error ? error.message : error);
     }
+  }
 
-    return { ...parseJsonLoose(`${stdout}\n${stderr}`), provider: 'lunaris-codex' };
+  try {
+    const content = await runHttpChat(TRADE_ANALYSIS_SYSTEM_PROMPT, userPrompt, { json: true });
+    return { ...parseJsonLoose(content), provider: 'lunaris-http' };
   } catch (error) {
-    console.warn('[ai-analysis] Lunaris Codex bridge fallback:', error instanceof Error ? error.message : error);
-    // Lunaris Codex provider hook: when the desktop runtime exposes a stable
-    // HTTP route, wire it here instead of adding browser-side credentials.
+    console.warn('[ai-analysis] HTTP AI provider fallback:', error instanceof Error ? error.message : error);
     return fallbackAnalysis(decision);
+  }
+}
+
+function fallbackChatAnswer(message, context) {
+  const symbol = context?.selectedStock?.symbol || context?.symbol || '当前标的';
+  const userQuestion = String(message || '').trim();
+  const directAdvicePattern = /(该不该|能买吗|能卖吗|买入|卖出|会涨|会跌|目标价|推荐|信号)/i;
+  const opening = userQuestion
+    ? `我会把这个问题当作思考整理来处理：${userQuestion}`
+    : '可以先写下你想澄清的问题，我会帮你检查思路是否清楚。';
+
+  if (directAdvicePattern.test(userQuestion)) {
+    return `${opening}\n\n我不能替你判断是否买入、卖出或预测价格。你可以围绕 ${symbol} 先补充三件事：\n1. 这次关注它的核心依据是什么？\n2. 什么事实会说明原来的判断需要修正？\n3. 如果判断不成立，最大可接受亏损是多少？\n\n仅供思考参考，不构成投资建议。`;
+  }
+
+  return `${opening}\n\n可以从这几个角度继续拆开：\n1. 这是事实、假设，还是情绪感受？\n2. 还有哪些相反证据没有看？\n3. 风险控制是否已经写成可以执行、可以复盘的条件？\n\n仅供思考参考，不构成投资建议。`;
+}
+
+export async function askInvestmentQuestion(payload = {}) {
+  const message = String(payload.message || '').trim();
+  const context = payload.context || {};
+  const userPrompt = `Current app context JSON:\n${JSON.stringify(context, null, 2)}\n\nUser question:\n${message}`;
+  const codexPrompt = `${AI_CHAT_SYSTEM_PROMPT}\n\n${userPrompt}`;
+
+  if (shouldTryCodexFirst()) {
+    try {
+      return {
+        answer: await runCodexPrompt(codexPrompt, parseCodexTextEvents),
+        provider: 'lunaris-codex'
+      };
+    } catch (error) {
+      console.warn('[ai-chat] Lunaris Codex bridge unavailable:', error instanceof Error ? error.message : error);
+    }
+  }
+
+  try {
+    return {
+      answer: await runHttpChat(AI_CHAT_SYSTEM_PROMPT, userPrompt),
+      provider: 'lunaris-http'
+    };
+  } catch (error) {
+    console.warn('[ai-chat] HTTP AI provider fallback:', error instanceof Error ? error.message : error);
+    return {
+      answer: fallbackChatAnswer(message, context),
+      provider: 'lunaris-codex-placeholder'
+    };
   }
 }

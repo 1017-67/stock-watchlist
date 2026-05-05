@@ -6,7 +6,7 @@ import {
   getQuote,
   searchSymbols
 } from './marketDataService.js';
-import { analyzeTradeDecision } from './codexAnalysisService.js';
+import { analyzeTradeDecision, askInvestmentQuestion, getAiProviderStatus } from './codexAnalysisService.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -28,7 +28,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     marketProvider: process.env.FINNHUB_API_KEY ? 'finnhub' : 'missing',
-    aiProvider: 'lunaris-codex-or-placeholder'
+    aiProvider: getAiProviderStatus()
   });
 });
 
@@ -67,6 +67,18 @@ app.post('/api/ai/analyze-trade', async (req, res) => {
     res.status(503).json({
       error: 'AI_UNAVAILABLE',
       message: 'AI 暂时不可用，但你仍然可以保存这次思考记录。'
+    });
+  }
+});
+
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const result = await askInvestmentQuestion(req.body || {});
+    res.json(result);
+  } catch {
+    res.status(503).json({
+      error: 'AI_UNAVAILABLE',
+      message: 'AI 暂时不可用，但你仍然可以继续记录自己的想法。'
     });
   }
 });

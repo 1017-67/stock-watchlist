@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, type AppTab } from './components/AppShell';
+import { AIChatBox } from './components/AIChatBox';
 import { Journal } from './components/Journal';
 import { StockDetailPanel } from './components/StockDetailPanel';
 import { TradeDecisionForm } from './components/TradeDecisionForm';
@@ -201,7 +202,10 @@ export default function App() {
               setSelectedId(stock.id);
             }}
           />
-          <TradeDecisionForm selectedStock={selectedStock} onSave={saveEntry} />
+          <aside className="right-rail">
+            <TradeDecisionForm selectedStock={selectedStock} onSave={saveEntry} />
+            <AIChatBox selectedStock={selectedStock} history={history} />
+          </aside>
         </main>
       )}
 

@@ -11,6 +11,7 @@
 - 价格走势：通过后端行情服务加载历史价格，支持 1日、1周、1月、6月、1年。
 - 买卖前检查：在保存交易想法前做本地风险检查。
 - AI 思考辅助：前端调用本地 `/api/ai/analyze-trade`，服务端优先使用 Lunaris Codex provider/runtime。
+- 问 AI：在页面内围绕当前股票和笔记继续提问，前端只调用本地 `/api/ai/chat`。
 - 交易笔记：保存交易计划、本地检查结果、AI 分析结果，并支持 1 周后、1 个月后复盘。
 
 ## 安装
@@ -42,7 +43,7 @@ Finnhub key 可以在 [Finnhub](https://finnhub.io/) 注册后获取。当前 v1
 
 本项目沿用 Lunaris 的 provider/auth 分离思路：
 
-- UI 只调用本地 `POST /api/ai/analyze-trade`。
+- UI 只调用本地 `POST /api/ai/analyze-trade` 和 `POST /api/ai/chat`。
 - provider、模型选择和认证逻辑留在服务端。
 - 不在浏览器中输入或保存 Codex/OpenAI key。
 - 不把 token 暴露给前端 bundle。
@@ -64,7 +65,30 @@ LUNARIS_CODEX_CLI=codex
 LUNARIS_CODEX_MODEL=gpt-5.5
 ```
 
-如果当前机器没有可用的 Lunaris Codex runtime，接口会返回明确的本地占位反思，UI 会继续允许保存笔记。等 Lunaris 后续暴露稳定 HTTP provider route 时，把连接逻辑接到 `server/codexAnalysisService.js` 中的注释位置即可。
+如果当前机器没有可用的 Lunaris Codex runtime，例如另一台 Windows 电脑，可以改用服务端 HTTP provider。把 key 放在 `.env.local`，不要放进浏览器或前端代码：
+
+```bash
+LUNARIS_AI_PROVIDER=auto
+OPENAI_API_KEY=你的服务端 key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+```
+
+也可以使用 Lunaris 兼容命名：
+
+```bash
+LUNARIS_AI_API_KEY=你的服务端 key
+LUNARIS_AI_BASE_URL=https://api.openai.com/v1
+LUNARIS_AI_MODEL=gpt-4o-mini
+```
+
+`LUNARIS_AI_PROVIDER=auto` 会先尝试 Codex CLI，失败后再尝试 HTTP provider。若想在 Windows 上跳过 Codex CLI，可以设置：
+
+```bash
+LUNARIS_AI_PROVIDER=http
+```
+
+如果当前机器没有可用的 Codex runtime，也没有配置 HTTP provider，接口会返回明确的本地占位反思，UI 会继续允许保存笔记。等 Lunaris 后续暴露稳定 HTTP provider route 时，把连接逻辑接到 `server/codexAnalysisService.js` 的 HTTP provider 配置即可。
 
 ## 运行
 
@@ -86,13 +110,14 @@ http://127.0.0.1:8787
 
 ## 使用方式
 
-1. 在「自选股」搜索股票代码或公司名称。
+1. 在「当前股票」搜索股票代码或公司名称。
 2. 添加股票，写下「今天为什么关注它？」和个人判断。
 3. 选择股票查看价格走势。
 4. 如果是持仓，记录数量、均价和买入日期。
-5. 在「买卖前检查」填写计划、止损价、判断失效条件和情绪状态。
-6. 点击「让 AI 帮我检查这次决定」查看思考辅助。
-7. 保存到「交易笔记」，后续补充 1 周后、1 个月后复盘。
+5. 在右侧填写买卖前检查、止损价、判断失效条件和情绪状态。
+6. 点击「让 AI 帮我检查这次决定」查看结构化思考辅助。
+7. 在「问 AI」里围绕当前股票继续提问，帮助自己把思路写清楚。
+8. 保存到「交易笔记」，后续补充 1 周后、1 个月后复盘。
 
 ## 本地数据
 
