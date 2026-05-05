@@ -64,14 +64,39 @@ VITE_API_BASE_URL=http://127.0.0.1:8787
 默认会按 Lunaris 当前方向使用 Codex 作为服务端 auth/runtime 层：
 
 ```bash
-codex exec --json -m gpt-5.5 --sandbox read-only -
+codex -a never exec -m gpt-5.5 -s read-only --skip-git-repo-check --ephemeral --output-last-message <tmpfile> -
 ```
 
 可以通过 `.env.local` 调整：
 
 ```bash
+LUNARIS_AI_PROVIDER=auto
 LUNARIS_CODEX_CLI=codex
 LUNARIS_CODEX_MODEL=gpt-5.5
+```
+
+这对应 Lunaris 的实际架构：
+
+- provider id: `openai-codex`
+- auth method: `oauth`
+- secret ref: `external:codex`
+- runtime: `codex_cli`
+- model refs: `openai/gpt-5.5` 这类引用会传给 `codex exec -m gpt-5.5`
+- 连接状态通过 `codex login status` 判断
+- 前端仍然只调用本地 `/api/ai/...`，不会接触 token
+
+如果你只有 ChatGPT 订阅而没有 API key，在目标电脑上先安装并登录 Codex：
+
+```bash
+npm install -g @openai/codex
+codex login
+codex login status
+```
+
+`codex login status` 需要显示已登录。然后重启本项目：
+
+```bash
+npm run dev
 ```
 
 如果当前机器没有可用的 Lunaris Codex runtime，例如另一台 Windows 电脑，可以改用服务端 HTTP provider。把 key 放在 `.env.local`，不要放进浏览器或前端代码：

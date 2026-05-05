@@ -1,4 +1,7 @@
 import { spawn } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 export const TRADE_ANALYSIS_SYSTEM_PROMPT = `You are a cautious trading decision reflection assistant. You do not provide financial advice, price predictions, trading signals, or direct buy/sell recommendations. You help the user examine reasoning quality, risk management, missing information, emotional bias, and whether the trade plan is clear. Always respond in Simplified Chinese. Be kind, calm, and practical. Always remind the user that this is only for reflection and does not constitute investment advice. Return only valid JSON with keys: summary, strengths, risks, missingInfo, questionsToConsider, emotionCheck, riskManagementCheck, finalReminder.`;
 
@@ -54,6 +57,13 @@ function parseJsonLoose(text) {
 }
 
 function parseCodexJsonEvents(text) {
+  try {
+    return parseJsonLoose(text);
+  } catch {
+    // Newer Lunaris-style output-last-message returns plain text; JSONL output
+    // from older Codex builds is handled below.
+  }
+
   const lines = text.split('\n').filter(Boolean);
   for (const line of lines.reverse()) {
     try {
@@ -118,6 +128,22 @@ function runCodexExec(cli, args, input) {
   });
 }
 
+async function codexLoginStatus(cli = process.env.LUNARIS_CODEX_CLI || 'codex') {
+  try {
+    const { stdout, stderr } = await runCodexExec(cli, ['login', 'status'], '');
+    const output = `${stdout}\n${stderr}`.trim();
+    return {
+      connected: output.toLowerCase().includes('logged in'),
+      message: output
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      message: error instanceof Error ? error.message : 'Codex login status unavailable'
+    };
+  }
+}
+
 function resolveHttpProvider() {
   const apiKey = process.env.LUNARIS_AI_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) return undefined;
@@ -177,24 +203,41 @@ async function runCodexPrompt(prompt, parser) {
   const cli = process.env.LUNARIS_CODEX_CLI || 'codex';
   const modelRef = process.env.LUNARIS_CODEX_MODEL || 'gpt-5.5';
   const model = modelRef.replace(/^openai\//, '');
+  const status = await codexLoginStatus(cli);
+  if (!status.connected) {
+    throw new Error(status.message || 'Codex is not signed in with ChatGPT');
+  }
+  const tempDir = await mkdtemp(join(tmpdir(), 'investnote-codex-'));
+  const outputPath = join(tempDir, 'last-message.txt');
 
   // Same Lunaris direction: Codex is the server-side auth/runtime layer.
   // The browser only calls this local API route; it never receives tokens.
-  const { stdout, stderr } = await runCodexExec(cli, [
-    'exec',
-    '--json',
-    '-m',
-    model,
-    '--skip-git-repo-check',
-    '--sandbox',
-    'read-only',
-    '-'
-  ], prompt);
-
   try {
-    return parser(stdout);
-  } catch {
+    const { stdout, stderr } = await runCodexExec(cli, [
+      '-a',
+      'never',
+      'exec',
+      '-m',
+      model,
+      '-s',
+      'read-only',
+      '--skip-git-repo-check',
+      '--ephemeral',
+      '--output-last-message',
+      outputPath,
+      '-'
+    ], prompt);
+
+    try {
+      const text = (await readFile(outputPath, 'utf8')).trim();
+      if (text) return parser(text);
+    } catch {
+      // Fall through to stdout/stderr parsing for older Codex builds.
+    }
+
     return parser(`${stdout}\n${stderr}`);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
   }
 }
 
