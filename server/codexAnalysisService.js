@@ -101,6 +101,8 @@ function runCodexExec(cli, args, input) {
     const child = spawn(cli, args, {
       env: process.env,
       cwd: process.cwd(),
+      shell: process.platform === 'win32',
+      windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
@@ -142,6 +144,27 @@ async function codexLoginStatus(cli = process.env.LUNARIS_CODEX_CLI || 'codex') 
       message: error instanceof Error ? error.message : 'Codex login status unavailable'
     };
   }
+}
+
+export async function getAiDiagnostics() {
+  const cli = process.env.LUNARIS_CODEX_CLI || 'codex';
+  const codexStatus = await codexLoginStatus(cli);
+  const httpProvider = resolveHttpProvider();
+  return {
+    providerMode: process.env.LUNARIS_AI_PROVIDER || 'auto',
+    codex: {
+      cli,
+      connected: codexStatus.connected,
+      message: codexStatus.message,
+      windowsShellMode: process.platform === 'win32'
+    },
+    httpProvider: {
+      configured: Boolean(httpProvider),
+      baseUrl: httpProvider?.baseUrl || null,
+      model: httpProvider?.model || null
+    },
+    selectedModel: process.env.LUNARIS_CODEX_MODEL || 'gpt-5.5'
+  };
 }
 
 function resolveHttpProvider() {

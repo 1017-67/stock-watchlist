@@ -99,6 +99,28 @@ codex login status
 npm run dev
 ```
 
+如果页面仍显示占位分析，打开下面的本地诊断地址：
+
+```text
+http://127.0.0.1:8787/api/ai/diagnostics
+```
+
+需要看到：
+
+```json
+{
+  "codex": {
+    "connected": true
+  }
+}
+```
+
+Windows 上全局安装的 `codex` 通常是 `codex.cmd`，本项目会通过 Windows shell 启动它。如果诊断里 `connected` 仍是 `false`，可在 `.env.local` 指定完整路径，例如：
+
+```env
+LUNARIS_CODEX_CLI=C:\\Users\\你的用户名\\AppData\\Roaming\\npm\\codex.cmd
+```
+
 如果当前机器没有可用的 Lunaris Codex runtime，例如另一台 Windows 电脑，可以改用服务端 HTTP provider。把 key 放在 `.env.local`，不要放进浏览器或前端代码：
 
 ```bash

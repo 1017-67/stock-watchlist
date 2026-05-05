@@ -6,7 +6,7 @@ import {
   getQuote,
   searchSymbols
 } from './marketDataService.js';
-import { analyzeTradeDecision, askInvestmentQuestion, getAiProviderStatus } from './codexAnalysisService.js';
+import { analyzeTradeDecision, askInvestmentQuestion, getAiDiagnostics, getAiProviderStatus } from './codexAnalysisService.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -32,12 +32,18 @@ function marketError(res) {
   });
 }
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
+  const aiDiagnostics = await getAiDiagnostics();
   res.json({
     ok: true,
     marketProvider: process.env.FINNHUB_API_KEY ? 'finnhub' : 'missing',
-    aiProvider: getAiProviderStatus()
+    aiProvider: getAiProviderStatus(),
+    codexConnected: aiDiagnostics.codex.connected
   });
+});
+
+app.get('/api/ai/diagnostics', async (_req, res) => {
+  res.json(await getAiDiagnostics());
 });
 
 app.get('/api/market/search', async (req, res) => {
