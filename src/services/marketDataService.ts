@@ -1,12 +1,26 @@
 import type { HistoryPoint, PriceRange, Quote } from '../types';
 
 const MARKET_ERROR = '暂时无法获取实时行情，请稍后再试。';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(MARKET_ERROR);
+  }
+
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || MARKET_ERROR);
   return data as T;
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  try {
+    return await readJsonResponse<T>(await fetch(url));
+  } catch (error) {
+    if (!url.startsWith('/api')) throw error;
+    return readJsonResponse<T>(await fetch(`${API_BASE_URL}${url}`));
+  }
 }
 
 export async function searchSymbols(query: string) {

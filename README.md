@@ -33,11 +33,20 @@ cp .env.example .env.local
 ```bash
 FINNHUB_API_KEY=你的 Finnhub API key
 ALPHA_VANTAGE_API_KEY=
+VITE_API_BASE_URL=http://127.0.0.1:8787
 ```
 
 Finnhub key 可以在 [Finnhub](https://finnhub.io/) 注册后获取。当前 v1 使用 Finnhub 的 symbol search、quote 和 candle API。代码已经把 `marketDataService` 独立出来，后续可以在同一层加入 Alpha Vantage fallback。
 
 不要把行情 key 写进前端代码。前端只调用本地 `/api/market/...` 路由。
+
+如果在 Windows 或 `npm run preview` 下看到 API JSON 正常、但页面里的图表不显示，确认 `.env.local` 里有：
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8787
+```
+
+这个值不是密钥，只是告诉前端在 `/api` 代理不可用时直接连接本地 API 服务。
 
 ## AI 连接方式
 
