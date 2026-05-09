@@ -1,6 +1,11 @@
 import type { AIAnalysis, HistoryPoint, Quote, StockType, TradeDecision } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
+const AI_TIMEOUT_MS = 180000;
+
+function connectionErrorMessage() {
+  return '无法连接本地 AI 后端。请确认 npm run dev 正在运行，并打开 http://127.0.0.1:8787/api/ai/diagnostics 检查 Codex 连接。';
+}
 
 async function postJson<T>(url: string, body: unknown, fallbackMessage: string): Promise<T> {
   const request = {
@@ -17,11 +22,33 @@ async function postJson<T>(url: string, body: unknown, fallbackMessage: string):
     return data as T;
   }
 
+  async function fetchWithTimeout(target: string) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+    try {
+      return await fetch(target, { ...request, signal: controller.signal });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('AI 检查超时。Codex 可能还在启动或当前请求太慢，请稍后重试。');
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
   try {
-    return await read(await fetch(url, request));
+    return await read(await fetchWithTimeout(url));
   } catch (error) {
     if (!url.startsWith('/api')) throw error;
-    return read(await fetch(`${API_BASE_URL}${url}`, request));
+    try {
+      return await read(await fetchWithTimeout(`${API_BASE_URL}${url}`));
+    } catch (fallbackError) {
+      if (fallbackError instanceof TypeError) {
+        throw new Error(connectionErrorMessage());
+      }
+      throw fallbackError;
+    }
   }
 }
 

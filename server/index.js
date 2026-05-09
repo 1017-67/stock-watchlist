@@ -14,9 +14,25 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT || 8787);
 
+function isAllowedLocalOrigin(origin) {
+  if (!origin) return true;
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    return (
+      ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(host) ||
+      /^192\.168\./.test(host) ||
+      /^10\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    );
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) {
+    if (isAllowedLocalOrigin(origin)) {
       callback(null, true);
       return;
     }
